@@ -1,3 +1,4 @@
+var fs = require('fs');
 /*************************************************************
 
 You should implement your request handler function in this file.
@@ -30,20 +31,22 @@ var requestHandler = function(request, response) {
   console.log('Serving request type ' + request.method + ' for url ' + request.url);
 
   // The outgoing status.
-  var statusCode = 200;
+  if (request.method === 'POST') {
+    postHandler(request, response);
+  } else {
+    getHandler(request, response);
+  }
+};
 
-  // See the note below about CORS headers.
+var getHandler = (request, response) => {
+  var getData = fs.readFileSync('messages.json', 'utf8');
+
   var headers = defaultCorsHeaders;
-
-  // Tell the client we are sending them plain text.
-  //
-  // You will need to change this if you are sending something
-  // other than plain text, like JSON or HTML.
-  headers['Content-Type'] = 'text/plain';
+  headers['Content-Type'] = 'application/json';
 
   // .writeHead() writes to the request line and headers of the response,
   // which includes the status and all headers.
-  response.writeHead(statusCode, headers);
+  response.writeHead(200, headers);
 
   // Make sure to always call response.end() - Node may not send
   // anything back to the client until you do. The string you pass to
@@ -52,7 +55,27 @@ var requestHandler = function(request, response) {
   //
   // Calling .end "flushes" the response's internal buffer, forcing
   // node to actually send all the data over to the client.
-  response.end('Hello, World!');
+  response.end(JSON.stringify({
+    results: [JSON.parse(getData)]
+  }));
+};
+
+var postHandler = (request, response) => {
+  // get body
+  var body = [];
+  
+  request.on('data', function(chunk) {
+    body.push(chunk);
+  });
+
+  request.on('end', function() {
+    body = body.join('');
+    // at this point, `body` has the entire request body stored in it as a string
+
+    fs.writeFileSync('messages.json', body, 'utf8');
+    response.writeHead(201, defaultCorsHeaders);
+    response.end(JSON.stringify({success: true}));
+  });
 };
 
 // These headers will allow Cross-Origin Resource Sharing (CORS).
@@ -71,3 +94,4 @@ var defaultCorsHeaders = {
   'access-control-max-age': 10 // Seconds.
 };
 
+exports.requestHandler = requestHandler;
