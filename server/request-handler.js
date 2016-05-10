@@ -2,6 +2,7 @@ var fs = require('fs');
 var url = require('url');
 var crypto = require('crypto');
 var path = require('path');
+var config = require('../config.js');
 
 /*************************************************************
 
@@ -16,7 +17,7 @@ this file and include it in basic-server.js so that it actually works.
 *Hint* Check out the node module documentation at http://nodejs.org/api/modules.html.
 
 **************************************************************/
-var documentRoot = '../2016-04-chatterbox-client/client';
+var documentRoot = config.documentRoot;
 
 var requestHandler = function(request, response) {
   // Request and Response come from node's http module.
@@ -36,8 +37,39 @@ var requestHandler = function(request, response) {
   console.log('Serving request type ' + request.method + ' for url ' + request.url);
   var pathname = url.parse(request.url).pathname.replace(/\/$/, '');
 
+  /**************************************************
+  * Router Refactor
+  // check if we have access to the pathname on the fs
+  // if we do have access to the pathname on the fs
+    // static file handler
+  // else
+    // if pathname is /classes/messages
+      // call appropriate messages method handler
+    // if pathname is /classes/rooms
+      // call appropriate rooms method handler
+    // else
+      // 404
+
+  // messages
+    // get -> serve messages
+    // post -> add a message
+
+  // rooms
+    // get -> serve rooms
+    // post -> method not supported
+
+  // static file handler
+    // if the pathname is a file
+      // if method is GET
+        // serve the file
+      // else
+        // method not supported
+  // else
+      // respond with 403
   // route requests to associated actions
-  // @todo: handle routes with/without trailing slashes
+  ******************************************************/
+
+  // old router
   if (pathname === '/classes/messages' || pathname === '/log') {
     if (request.method === 'POST') {
       postHandler(request, response);
@@ -46,6 +78,14 @@ var requestHandler = function(request, response) {
     }
   } else {
     if (pathname === '') { pathname = '/index.html'; }
+    
+    try {
+      fs.accessSync(documentRoot + pathname);
+    } catch (e) {
+      returnWithStatusCode(response, 404);
+      return;
+    }
+
     if (fs.statSync(documentRoot + pathname).isFile()) {
       var file = fs.readFileSync(documentRoot + pathname);
 
@@ -60,15 +100,18 @@ var requestHandler = function(request, response) {
       var headers = defaultCorsHeaders;
       headers['Content-Type'] = contentTypes[path.extname(pathname)];
 
-
       // respond with file contents
       response.writeHead(200, headers);
       response.end(file);
     } else {
-      response.writeHead(404, defaultCorsHeaders);
-      response.end();
+      returnWithStatusCode(response, 403);
     }
   }
+};
+
+var returnWithStatusCode = function(response, statusCode) {
+  response.writeHead(statusCode, defaultCorsHeaders);
+  response.end();
 };
 
 var getHandler = (request, response) => {
