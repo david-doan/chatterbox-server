@@ -108,13 +108,7 @@ describe('Node Server Request Listener Function', function() {
     var res = new stubs.response();
 
     handler.requestHandler(req, res);
-
-    // Wait for response to return and then check status code
-    waitForThen(
-      function() { return res._ended; },
-      function() {
-        expect(res._responseCode).to.equal(404);
-      });
+    expect(res._responseCode).to.equal(404);
   });
 
 });

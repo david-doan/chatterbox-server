@@ -1,4 +1,5 @@
 var fs = require('fs');
+var url = require('url');
 /*************************************************************
 
 You should implement your request handler function in this file.
@@ -29,12 +30,19 @@ var requestHandler = function(request, response) {
   // debugging help, but you should always be careful about leaving stray
   // console.logs in your code.
   console.log('Serving request type ' + request.method + ' for url ' + request.url);
+  var pathname = url.parse(request.url).pathname.replace(/\/$/, '');
 
-  // The outgoing status.
-  if (request.method === 'POST') {
-    postHandler(request, response);
+  // route requests to associated actions
+  // @todo: handle routes with/without trailing slashes
+  if (pathname === '/classes/messages' || pathname === '/log') {
+    if (request.method === 'POST') {
+      postHandler(request, response);
+    } else {
+      getHandler(request, response);
+    }
   } else {
-    getHandler(request, response);
+    response.writeHead(404, defaultCorsHeaders);
+    response.end();
   }
 };
 
