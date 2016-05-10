@@ -1,5 +1,8 @@
 var fs = require('fs');
 var url = require('url');
+var crypto = require('crypto');
+var path = require('path');
+
 /*************************************************************
 
 You should implement your request handler function in this file.
@@ -13,6 +16,7 @@ this file and include it in basic-server.js so that it actually works.
 *Hint* Check out the node module documentation at http://nodejs.org/api/modules.html.
 
 **************************************************************/
+var documentRoot = '../2016-04-chatterbox-client/client';
 
 var requestHandler = function(request, response) {
   // Request and Response come from node's http module.
@@ -41,13 +45,34 @@ var requestHandler = function(request, response) {
       getHandler(request, response);
     }
   } else {
-    response.writeHead(404, defaultCorsHeaders);
-    response.end();
+    if (pathname === '') { pathname = '/index.html'; }
+    if (fs.statSync(documentRoot + pathname).isFile()) {
+      var file = fs.readFileSync(documentRoot + pathname);
+
+      var contentTypes = {
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'text/javascript',
+        '.png': 'image/png',
+        '.jpg': 'image/jpg',
+        '.gif': 'image/gif'
+      };
+      var headers = defaultCorsHeaders;
+      headers['Content-Type'] = contentTypes[path.extname(pathname)];
+
+
+      // respond with file contents
+      response.writeHead(200, headers);
+      response.end(file);
+    } else {
+      response.writeHead(404, defaultCorsHeaders);
+      response.end();
+    }
   }
 };
 
 var getHandler = (request, response) => {
-  var getData = fs.readFileSync('messages.json', 'utf8');
+  var messages = fs.readFileSync('messages.json', 'utf8') || '[]';
 
   var headers = defaultCorsHeaders;
   headers['Content-Type'] = 'application/json';
@@ -64,11 +89,14 @@ var getHandler = (request, response) => {
   // Calling .end "flushes" the response's internal buffer, forcing
   // node to actually send all the data over to the client.
   response.end(JSON.stringify({
-    results: [JSON.parse(getData)]
+    results: JSON.parse(messages)
   }));
 };
 
 var postHandler = (request, response) => {
+  var messages = fs.readFileSync('messages.json', 'utf8') || '[]';
+  messages = JSON.parse(messages);
+
   // get body
   var body = [];
   
@@ -78,9 +106,13 @@ var postHandler = (request, response) => {
 
   request.on('end', function() {
     body = body.join('');
-    // at this point, `body` has the entire request body stored in it as a string
+    body = JSON.parse(body);
+    body.objectId = crypto.randomBytes(16).toString('hex');
 
-    fs.writeFileSync('messages.json', body, 'utf8');
+    messages.push(body);
+    messages = JSON.stringify(messages);
+
+    fs.writeFileSync('messages.json', messages, 'utf8');
     response.writeHead(201, defaultCorsHeaders);
     response.end(JSON.stringify({success: true}));
   });
